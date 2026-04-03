@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#020617">
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+    <title>BioWorkbench | Academic Submission</title>
+    <style>
+        /* --- CORE ARCHITECTURE & THEME --- */
+        :root {
+            --bg-deep: #020617; --bg-surface: #0f172a; --bg-card: #1e293b;
+            --text-main: #f8fafc; --text-muted: #94a3b8;
+            --primary: #38bdf8; --secondary: #818cf8; --success: #34d399; --danger: #f43f5e; --warning: #fbbf24;
+            --border: rgba(255,255,255,0.1);
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'Fira Code', 'Courier New', monospace;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        body { font-family: var(--font-sans); background: var(--bg-deep); color: var(--text-main); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        /* --- ACADEMIC SUBMISSION HEADER --- */
+        .academic-header { background: linear-gradient(135deg, rgba(15,23,42,0.9), rgba(30,41,59,0.9)); border-bottom: 1px solid var(--border); padding: 1rem; display: flex; justify-content: space-between; align-items: center; backdrop-filter: blur(10px); z-index: 100; }
+        .branding h1 { font-size: 1.2rem; font-weight: 800; background: linear-gradient(to right, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .submission-badge { background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); padding: 12px; border-radius: 8px; font-size: 0.75rem; text-align: right; }
+        .submission-badge strong { color: var(--primary); display: block; font-size: 0.85rem; margin-bottom: 2px;}
+        .submission-badge span { color: var(--text-muted); display: block;}
+        
+        .btn-ppt { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; padding: 6px 12px; background: rgba(251, 191, 36, 0.15); color: var(--warning); border: 1px solid var(--warning); border-radius: 6px; text-decoration: none; font-size: 0.8rem; font-weight: 700; transition: var(--transition); }
+        .btn-ppt:hover { background: var(--warning); color: #000; transform: translateY(-1px); }
+
+        /* --- CONTROL PANEL & AUTOCOMPLETE --- */
+        .control-panel { background: var(--bg-surface); padding: 1rem; border-bottom: 1px solid var(--border); display: flex; gap: 10px; z-index: 90; position: relative; }
+        .search-wrapper { flex: 1; position: relative; }
+        input[type="text"] { width: 100%; padding: 12px 16px; background: var(--bg-deep); border: 1px solid var(--border); border-radius: 8px; color: white; font-family: var(--font-sans); font-size: 14px; transition: var(--transition); }
+        input[type="text"]:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2); }
+        .btn { padding: 12px 24px; background: var(--primary); color: #000; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; transition: var(--transition); display: flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap;}
+        .btn:hover { background: #0ea5e9; transform: translateY(-1px); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .autocomplete-dropdown { position: absolute; top: calc(100% + 4px); left: 0; width: 100%; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); z-index: 1000; display: none; max-height: 300px; overflow-y: auto; }
+        .hint-item { padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; }
+        .hint-item:hover { background: rgba(56, 189, 248, 0.1); }
+        .hint-id { font-family: var(--font-mono); color: var(--primary); font-size: 0.75rem; font-weight: bold; margin-bottom: 4px; }
+        .hint-title { font-size: 0.85rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* --- NAVIGATION --- */
+        .nav-wrapper { background: var(--bg-surface); border-bottom: 1px solid var(--border); overflow-x: auto; white-space: nowrap; }
+        .nav-wrapper::-webkit-scrollbar { display: none; }
+        .nav-menu { display: inline-flex; padding: 0.5rem; gap: 8px; }
+        .nav-item { padding: 8px 16px; border-radius: 20px; color: var(--text-muted); font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: var(--transition); }
+        .nav-item.active { background: rgba(56, 189, 248, 0.15); color: var(--primary); }
+
+        /* --- WORKSPACE --- */
+        main { flex: 1; overflow-y: auto; padding: 1.5rem; background: var(--bg-deep); }
+        .view { display: none; animation: fadeUp 0.4s ease forwards; }
+        .view.active { display: block; }
+        .section-title { font-size: 1.25rem; margin-bottom: 0.5rem; }
+        .section-desc { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem; line-height: 1.5; }
+
+        /* --- CARDS & GRIDS --- */
+        .grid-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem;}
+        .card-label { font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; letter-spacing: 0.5px; }
+        .card-value { font-size: 1.5rem; font-weight: 800; color: var(--primary); margin-top: 0.5rem; font-family: var(--font-mono); }
+
+        /* PATHOLOGY STYLES */
+        .pathology-alert { padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid transparent; }
+        .pathology-alert.negative { background: rgba(52, 211, 153, 0.1); border-left-color: var(--success); }
+        .pathology-alert.positive { background: rgba(244, 63, 94, 0.1); border-left-color: var(--danger); }
+        .path-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 4px; display: flex; justify-content: space-between;}
+        .badge { padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; text-transform: uppercase; font-weight: bold; }
+        .badge.neg { background: var(--success); color: #000; }
+        .badge.pos { background: var(--danger); color: #fff; }
+
+        /* --- VISUALIZERS --- */
+        .map-container { display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 2rem; position: relative; }
+        #plasmidSvg { width: 100%; max-width: 400px; height: auto; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.5)); }
+        .arc-gene { cursor: pointer; transition: stroke-width 0.2s, filter 0.2s; }
+        .arc-gene:hover { stroke-width: 25; filter: brightness(1.3); }
+        #mapTooltip { position: absolute; background: rgba(15,23,42,0.95); border: 1px solid var(--primary); padding: 1rem; border-radius: 8px; font-size: 0.8rem; pointer-events: none; opacity: 0; transition: opacity 0.2s; z-index: 10; backdrop-filter: blur(4px); box-shadow: 0 10px 25px rgba(0,0,0,0.5); text-align: center; }
+
+        /* 3D Canvas */
+        #dnaCanvas { width: 100%; height: 350px; background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border); margin-bottom: 1rem; box-shadow: inset 0 0 50px rgba(0,0,0,0.5); cursor: crosshair; }
+
+        /* --- TABLES & MISC --- */
+        .table-container { overflow-x: auto; background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border); margin-bottom: 1.5rem; }
+        table { width: 100%; border-collapse: collapse; min-width: 500px; text-align: left; }
+        th, td { padding: 12px; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+        th { background: rgba(0,0,0,0.2); color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; }
+        .mono { font-family: var(--font-mono); }
+        .seq-box { background: #000; border: 1px solid var(--border); border-radius: 8px; padding: 1rem; font-family: var(--font-mono); font-size: 11px; color: var(--secondary); max-height: 250px; overflow-y: auto; word-break: break-all; line-height: 1.6; }
+        .paper-item { border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1rem; }
+        .paper-title { color: var(--primary); font-weight: 600; font-size: 1rem; margin-bottom: 4px; }
+        .paper-meta { color: var(--text-muted); font-size: 0.8rem; }
+        .code-box { white-space: pre; color: #a5b4fc; word-break: normal; }
+
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        @media (max-width: 600px) {
+            .academic-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+            .submission-badge { text-align: left; width: 100%; }
+            .control-panel { flex-direction: column; }
+            .btn { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="academic-header">
+        <div class="branding">
+            <h1>Genetic Engineering Assignment</h1>
+            <div id="systemStatus" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">System Ready</div>
+        </div>
+        <div class="submission-badge">
+            <strong>By:Sahil Setia (Btech 2^nd year) Govind Ballabh Pant Of Colledge of Engineering And Technology</strong>
+            <span> Submitted to: Mr. Pranshu Dangwal</span>
+            <br>
+            <a href="https://drive.google.com/file/d/1grJcfBRee6IBZOwv84s6cbHvnZ86T2D2/view?usp=sharing" target="_blank" class="btn-ppt">
+                📊 View Project Presentation
+            </a>
+        </div>
+    </header>
+
+    <div class="control-panel">
+        <div class="search-wrapper">
+            <input type="text" id="accessionInput" placeholder="Search Accession ID or Name (e.g. NC_002377)" autocomplete="off" oninput="bioApp.debounceHints(this.value)">
+            <div id="autocompleteBox" class="autocomplete-dropdown"></div>
+        </div>
+        <button id="runBtn" class="btn" onclick="bioApp.runPipeline()">Analyze</button>
+    </div>
+
+    <div class="nav-wrapper">
+        <div class="nav-menu">
+            <div class="nav-item active" onclick="bioApp.switchTab('dashboard', this)">Overview</div>
+            <div class="nav-item" onclick="bioApp.switchTab('dna', this)">🧬 3D DNA</div>
+            <div class="nav-item" onclick="bioApp.switchTab('pathology', this)">🦠 Pathology</div>
+            <div class="nav-item" onclick="bioApp.switchTab('map', this)">🗺️ Map</div>
+            <div class="nav-item" onclick="bioApp.switchTab('dogma', this)">Central Dogma</div>
+            <div class="nav-item" onclick="bioApp.switchTab('epigenetics', this)">Epigenetics</div>
+            <div class="nav-item" onclick="bioApp.switchTab('tools', this)">Thermodynamics</div>
+            <div class="nav-item" onclick="bioApp.switchTab('literature', this)">📚 Literature</div>
+            <div class="nav-item" onclick="bioApp.switchTab('source', this)" style="color: var(--success);">💻 Source Code</div>
+        </div>
+    </div>
+
+    <main>
+        
+        <div id="view-dashboard" class="view active">
+            <h2 class="section-title">Genomic Overview</h2>
+            <p class="section-desc">High-level sequence statistics and NCBI metadata extraction.</p>
+            
+            <div class="grid-stats">
+                <div class="card"><div class="card-label">Length</div><div id="stat-len" class="card-value">0 bp</div></div>
+                <div class="card"><div class="card-label">GC Content</div><div id="stat-gc" class="card-value">0%</div></div>
+                <div class="card"><div class="card-label">Predicted ORFs</div><div id="stat-orfs" class="card-value">0</div></div>
+                <div class="card"><div class="card-label">CpG Islands</div><div id="stat-cpg" class="card-value">0</div></div>
+            </div>
+
+            <div class="card">
+                <div class="card-label" style="margin-bottom: 10px;">NCBI Record Metadata</div>
+                <div style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.8;">
+                    <div><strong style="color: white;">Accession ID:</strong> <span id="meta-acc" class="mono">---</span></div>
+                    <div><strong style="color: white;">Definition:</strong> <span id="meta-def">---</span></div>
+                    <div><strong style="color: white;">Organism:</strong> <span id="meta-org">---</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-dna" class="view">
+            <h2 class="section-title">3D Double Helix Engine</h2>
+            <p class="section-desc">Real-time mathematically generated trigonometric visualization of ATGC base pairs.</p>
+            <canvas id="dnaCanvas"></canvas>
+            <div class="card">
+                <div class="card-label">Nucleotide Base Pairing (ATGC)</div>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 10px; line-height: 1.6;">
+                    The engine now renders dynamic representations of Purine and Pyrimidine structures. 
+                    <strong style="color: #f43f5e;">Adenine (A)</strong> perfectly pairs with <strong style="color: #38bdf8;">Thymine (T)</strong>, 
+                    and <strong style="color: #34d399;">Guanine (G)</strong> pairs with <strong style="color: #fbbf24;">Cytosine (C)</strong>. 
+                    Depth and scale are dynamically updated utilizing Z-axis pseudo-layering algorithms.
+                </p>
+            </div>
+        </div>
+
+        <div id="view-pathology" class="view">
+            <h2 class="section-title">Pathogenicity Diagnostics</h2>
+            <p class="section-desc">Scans the sequence for highly conserved oncogenes and virulence markers associated with Agrobacterium infections.</p>
+            <div id="pathologyResults">
+                <div style="text-align: center; color: var(--text-muted); padding: 2rem;">Run pipeline to perform diagnostic scan...</div>
+            </div>
+        </div>
+
+        <div id="view-map" class="view">
+            <h2 class="section-title">Interactive Sequence Map</h2>
+            <p class="section-desc">Circular topological visualization of identified Open Reading Frames (ORFs).</p>
+            <div class="map-container">
+                <svg id="plasmidSvg" viewBox="0 0 500 500">
+                    <circle cx="250" cy="250" r="200" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="20"/>
+                    <circle cx="250" cy="250" r="200" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="2" stroke-dasharray="5, 10"/>
+                    <g id="svgGenesGroup"></g>
+                </svg>
+                <div id="mapTooltip">
+                    <strong id="tt-id" style="color:var(--primary); font-size:1.1rem; display:block; margin-bottom:4px;">Gene</strong>
+                    <span id="tt-pos" class="mono" style="color:var(--text-muted);">---</span><br>
+                    <span id="tt-len" style="color:var(--success);">---</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-dogma" class="view">
+            <h2 class="section-title">Central Dogma Engine</h2>
+            <p class="section-desc">In-silico transcription to mRNA and translation to Polypeptides.</p>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Gene ID</th><th>Coordinates</th><th>Protein Length</th><th>Est. Mass</th></tr></thead>
+                    <tbody id="orfTable"><tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Run pipeline to compute...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="view-epigenetics" class="view">
+            <h2 class="section-title">Epigenetic CpG Mapper</h2>
+            <p class="section-desc">Identifies Cytosine-Guanine dinucleotide clusters for methylation prediction.</p>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Island #</th><th>Start (bp)</th><th>End (bp)</th><th>Density</th></tr></thead>
+                    <tbody id="cpgTable"><tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Run pipeline to map islands...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="view-tools" class="view">
+            <h2 class="section-title">Oligo Thermodynamics</h2>
+            <p class="section-desc">Extracts terminal sequences and calculates Melting Temperature (Tm) for PCR primers.</p>
+            <select id="primerSelect" style="width: 100%; padding: 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: white; margin-bottom: 1.5rem;" onchange="bioApp.calculatePrimers()">
+                <option value="">-- Select Gene Target --</option>
+            </select>
+
+            <div id="primerResults" style="display: none; gap: 1rem; flex-direction: column;">
+                <div class="card" style="border-left: 4px solid var(--primary);">
+                    <div class="card-label" style="color: var(--primary);">Forward Primer (5' → 3')</div>
+                    <div id="fwdSeq" class="mono" style="font-size: 1.1rem; margin: 10px 0;">---</div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); display: flex; gap: 15px;">
+                        <span>Len: 20bp</span><span id="fwdGc">GC: 0%</span><strong id="fwdTm" style="color: var(--warning);">Tm: 0°C</strong>
+                    </div>
+                </div>
+                <div class="card" style="border-left: 4px solid var(--success);">
+                    <div class="card-label" style="color: var(--success);">Reverse Primer (5' → 3')</div>
+                    <div id="revSeq" class="mono" style="font-size: 1.1rem; margin: 10px 0;">---</div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); display: flex; gap: 15px;">
+                        <span>Len: 20bp</span><span id="revGc">GC: 0%</span><strong id="revTm" style="color: var(--warning);">Tm: 0°C</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-literature" class="view">
+            <h2 class="section-title">PubMed Literature Match</h2>
+            <p class="section-desc">Recent published research papers related to the sequenced organism.</p>
+            <div class="card" id="papersContainer">
+                <div style="text-align: center; color: var(--text-muted); padding: 2rem 0;">Run pipeline to fetch literature...</div>
+            </div>
+        </div>
+
+        <div id="view-source" class="view">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <div>
+                    <h2 class="section-title">Application Source Code</h2>
+                    <p class="section-desc" style="margin-bottom: 0;">Open-source transparency. View the complete HTML, CSS, and JS powering this tool.</p>
+                </div>
+                <button class="btn" style="background: var(--success); padding: 8px 16px; font-size: 0.85rem;" onclick="bioApp.copySource()">📋 Copy Code</button>
+            </div>
+            <div class="seq-box code-box" id="sourceCodeViewer">Loading source code...</div>
+        </div>
+
+    </main>
+
+<script>
+const API_KEY = "52045ffc554ccc9ed245da43bee911cd8409";
+
+const bioApp = {
+    data: { accession: "", sequence: "", metadata: null, orfs: [], cpgIslands: [], pathology: {} },
+    hintTimeout: null,
+    sourceLoaded: false,
+    dnaAnimationId: null,
+
+    pathologyMarkers: {
+        crownGall: { name: "Crown Gall Disease (Ti Plasmid)", markers: ["GATCCGTC", "ATGCCTGC", "TCGATGTC"] }, 
+        hairyRoot: { name: "Hairy Root Disease (Ri Plasmid)", markers: ["CGCGGATC", "GGATCCCG", "ATGCGTAC"] }
+    },
+
+    codons: {
+        'ATA':'I', 'ATC':'I', 'ATT':'I', 'ATG':'M', 'ACA':'T', 'ACC':'T', 'ACG':'T', 'ACT':'T',
+        'AAC':'N', 'AAT':'N', 'AAA':'K', 'AAG':'K', 'AGC':'S', 'AGT':'S', 'AGA':'R', 'AGG':'R',
+        'CTA':'L', 'CTC':'L', 'CTG':'L', 'CTT':'L', 'CCA':'P', 'CCC':'P', 'CCG':'P', 'CCT':'P',
+        'CAC':'H', 'CAT':'H', 'CAA':'Q', 'CAG':'Q', 'CGA':'R', 'CGC':'R', 'CGG':'R', 'CGT':'R',
+        'GTA':'V', 'GTC':'V', 'GTG':'V', 'GTT':'V', 'GCA':'A', 'GCC':'A', 'GCG':'A', 'GCT':'A',
+        'GAC':'D', 'GAT':'D', 'GAA':'E', 'GAG':'E', 'GGA':'G', 'GGC':'G', 'GGG':'G', 'GGT':'G',
+        'TCA':'S', 'TCC':'S', 'TCG':'S', 'TCT':'S', 'TTC':'F', 'TTT':'F', 'TTA':'L', 'TTG':'L',
+        'TAC':'Y', 'TAT':'Y', 'TAA':'*', 'TAG':'*', 'TGC':'C', 'TGT':'C', 'TGA':'*', 'TGG':'W',
+    },
+
+    polarToCartesian: function(cx, cy, r, angle) {
+        let rad = (angle - 90) * Math.PI / 180.0;
+        return { x: cx + (r * Math.cos(rad)), y: cy + (r * Math.sin(rad)) };
+    },
+
+    describeArc: function(x, y, r, startAngle, endAngle) {
+        let start = this.polarToCartesian(x, y, r, endAngle);
+        let end = this.polarToCartesian(x, y, r, startAngle);
+        let largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+        return ["M", start.x, start.y, "A", r, r, 0, largeArcFlag, 0, end.x, end.y].join(" ");
+    },
+
+    switchTab: function(viewId, btn) {
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+        document.getElementById(`view-${viewId}`).classList.add('active');
+        btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        
+        if(viewId === 'source') this.loadSourceCode();
+        if(viewId === 'dna') this.startDNA(); else this.stopDNA(); 
+    },
+
+    // --- ENHANCED CANVAS 3D DNA RENDERER WITH ATGC ---
+    startDNA: function() {
+        if(this.dnaAnimationId) return; 
+        const canvas = document.getElementById('dnaCanvas');
+        const ctx = canvas.getContext('2d');
+        let width = canvas.width = canvas.parentElement.clientWidth;
+        let height = canvas.height = 350;
+        let angle = 0;
+
+        // Base Pair Biological Definitions
+        const pairs = [
+            { b1: 'A', c1: '#f43f5e', b2: 'T', c2: '#38bdf8' }, // A (Red) pairs with T (Blue)
+            { b1: 'T', c1: '#38bdf8', b2: 'A', c2: '#f43f5e' }, // T pairs with A
+            { b1: 'G', c1: '#34d399', b2: 'C', c2: '#fbbf24' }, // G (Green) pairs with C (Yellow)
+            { b1: 'C', c1: '#fbbf24', b2: 'G', c2: '#34d399' }  // C pairs with G
+        ];
+
+        const drawNode = (x, y, scale, color, letter) => {
+            let radius = 4 + scale * 8;
+            
+            // Draw Glowing Molecule
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = color;
+            ctx.fill();
+            ctx.shadowBlur = 0; // Reset shadow for text
+
+            // Draw Typography if molecule is in the foreground
+            if (scale > 0.4) {
+                ctx.fillStyle = '#020617'; // Dark background color for text contrast
+                ctx.font = `bold ${8 + scale * 5}px var(--font-mono)`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(letter, x, y);
+            }
+        };
+
+        const render = () => {
+            ctx.clearRect(0, 0, width, height);
+            
+            let centerY = height / 2;
+            let amplitude = 70; // Width of the helix
+            let frequency = 0.025; // Tightness of the twists
+            let spacing = 28; // Space between base pairs
+
+            for (let i = 0; i < width; i += spacing) {
+                // Trigonometry for double helix structure
+                let y1 = centerY + Math.sin(i * frequency + angle) * amplitude;
+                let y2 = centerY + Math.sin(i * frequency + angle + Math.PI) * amplitude;
+                
+                // Scale simulates Z-depth illusion
+                let scale1 = (Math.cos(i * frequency + angle) + 1) / 2;
+                let scale2 = (Math.cos(i * frequency + angle + Math.PI) + 1) / 2;
+
+                // Pick a pseudo-random but stable base pair
+                let pIdx = Math.floor((i * 17) % 4);
+                let pair = pairs[pIdx];
+
+                // Connecting Hydrogen Bonds
+                ctx.beginPath();
+                ctx.moveTo(i, y1);
+                ctx.lineTo(i, y2);
+                ctx.strokeStyle = `rgba(255, 255, 255, ${0.1 + scale1 * 0.2})`;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Z-Sorting: Draw the molecule that is furthest back first, then the front
+                if (scale1 < scale2) {
+                    drawNode(i, y1, scale1, pair.c1, pair.b1); // Draw Back
+                    drawNode(i, y2, scale2, pair.c2, pair.b2); // Draw Front
+                } else {
+                    drawNode(i, y2, scale2, pair.c2, pair.b2); // Draw Back
+                    drawNode(i, y1, scale1, pair.c1, pair.b1); // Draw Front
+                }
+            }
+            angle += 0.03; // Global rotation speed
+            this.dnaAnimationId = requestAnimationFrame(render);
+        };
+        render();
+    },
+
+    stopDNA: function() {
+        if(this.dnaAnimationId) {
+            cancelAnimationFrame(this.dnaAnimationId);
+            this.dnaAnimationId = null;
+        }
+    },
+
+    loadSourceCode: async function() {
+        if(this.sourceLoaded) return;
+        try {
+            let res = await fetch(window.location.href);
+            let text = await res.text();
+            text = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            document.getElementById('sourceCodeViewer').innerHTML = text;
+            this.sourceLoaded = true;
+        } catch (e) {
+            document.getElementById('sourceCodeViewer').textContent = "// Cannot load source code locally due to browser CORS policies.\n// Please host on Vercel/GitHub Pages to view.";
+        }
+    },
+
+    copySource: function() {
+        const code = document.getElementById('sourceCodeViewer').innerText;
+        navigator.clipboard.writeText(code).then(() => alert("✅ Source code copied!")).catch(err => alert("Failed to copy."));
+    },
+
+    setStatus: function(msg) {
+        document.getElementById('systemStatus').textContent = `[System]: ${msg}`;
+    },
+
+    debounceHints: function(val) {
+        clearTimeout(this.hintTimeout);
+        const box = document.getElementById('autocompleteBox');
+        if(val.length < 3) { box.style.display = 'none'; return; }
+        box.style.display = 'block';
+        box.innerHTML = '<div style="padding:12px; color:var(--text-muted); font-size:0.85rem;">Querying Database...</div>';
+        this.hintTimeout = setTimeout(() => this.fetchHints(val), 500);
+    },
+
+    fetchHints: async function(query) {
+        const box = document.getElementById('autocompleteBox');
+        try {
+            let sRes = await fetch(`https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=nuccore&term=${query}*&retmax=5&retmode=json&api_key=${API_KEY}`);
+            let sData = await sRes.json();
+            if(!sData.esearchresult || sData.esearchresult.idlist.length === 0) {
+                box.innerHTML = '<div style="padding:12px; color:var(--text-muted); font-size:0.85rem;">No direct matches found. Press Analyze to deep search.</div>';
+                return;
+            }
+            let uids = sData.esearchresult.idlist.join(',');
+            let sumRes = await fetch(`https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=nuccore&id=${uids}&retmode=json&api_key=${API_KEY}`);
+            let sumData = await sumRes.json();
+            
+            box.innerHTML = '';
+            sData.esearchresult.idlist.forEach(id => {
+                let rec = sumData.result[id];
+                let div = document.createElement('div');
+                div.className = 'hint-item';
+                div.onclick = () => {
+                    document.getElementById('accessionInput').value = rec.caption; 
+                    box.style.display = 'none';
+                    this.runPipeline();
+                };
+                div.innerHTML = `<div class="hint-id">${rec.caption}</div><div class="hint-title">${rec.title}</div>`;
+                box.appendChild(div);
+            });
+        } catch (e) { box.style.display = 'none'; }
+    },
+
+    runPipeline: async function() {
+        document.getElementById('autocompleteBox').style.display = 'none';
+        let input = document.getElementById('accessionInput').value.trim();
+        if(!input) return alert("Search term required.");
+        
+        const btn = document.getElementById('runBtn');
+        btn.disabled = true; btn.textContent = "Processing...";
+
+        try {
+            this.setStatus("Resolving Search Query...");
+            let searchTerm = input.includes('_') ? input : `${input}[All Fields] AND biomol_genomic[PROP]`;
+
+            let res = await fetch(`https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=nuccore&term=${searchTerm}&retmode=json&api_key=${API_KEY}`);
+            let json = await res.json();
+            if (!json.esearchresult || json.esearchresult.idlist.length === 0) throw new Error("No database matches found.");
+            let uid = json.esearchresult.idlist[0];
+
+            this.setStatus("Downloading genomic records...");
+            let [metaRes, fastaRes] = await Promise.all([
+                fetch(`https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=nuccore&id=${uid}&retmode=json&api_key=${API_KEY}`),
+                fetch(`https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=${uid}&rettype=fasta&retmode=text&api_key=${API_KEY}`)
+            ]);
+            
+            let metaJson = await metaRes.json();
+            this.data.metadata = metaJson.result[uid];
+            
+            let rawFasta = await fastaRes.text();
+            let lines = rawFasta.split('\n'); lines.shift(); 
+            this.data.sequence = lines.join('').replace(/\s/g, '').toUpperCase();
+            this.data.accession = this.data.metadata.caption || input;
+
+            this.setStatus("Computing Biophysics & Pathology...");
+            await new Promise(r => setTimeout(r, 50)); 
+            
+            this.computeStats();
+            this.findORFsAndTranslate();
+            this.mapCpGIslands();
+            this.detectPathogens();
+            
+            this.fetchLiterature(this.data.metadata.organism || this.data.metadata.title);
+            this.updateDOM();
+            this.setStatus("Pipeline execution completed.");
+        } catch (err) {
+            alert("Error: " + err.message);
+            this.setStatus("Error encountered.");
+        } finally {
+            btn.disabled = false; btn.textContent = "Analyze";
+        }
+    },
+
+    computeStats: function() {
+        const seq = this.data.sequence;
+        let gc = 0; for(let i=0; i<seq.length; i++) { if(seq[i] === 'G' || seq[i] === 'C') gc++; }
+        this.data.gcPercent = ((gc / seq.length) * 100).toFixed(1);
+    },
+
+    findORFsAndTranslate: function() {
+        const seq = this.data.sequence;
+        this.data.orfs = [];
+        const stops = ['TAA', 'TAG', 'TGA'];
+
+        for (let frame = 0; frame < 3; frame++) {
+            for (let i = frame; i < seq.length - 2; i += 3) {
+                if (seq.substring(i, i+3) === 'ATG') { 
+                    for (let j = i + 3; j < seq.length - 2; j += 3) {
+                        if (stops.includes(seq.substring(j, j+3))) {
+                            let len = (j+3) - i;
+                            if (len >= 300) { 
+                                let dna = seq.substring(i, j+3);
+                                let protein = "";
+                                for(let k=0; k<dna.length-2; k+=3) protein += this.codons[dna.substr(k,3)] || 'X';
+                                let mw_kda = ((protein.length * 110) / 1000).toFixed(1);
+                                this.data.orfs.push({ start: i+1, stop: j+3, dna: dna, protein: protein, mw: mw_kda, length: len });
+                            }
+                            i = j; break; 
+                        }
+                    }
+                }
+            }
+        }
+        this.data.orfs.sort((a,b) => b.dna.length - a.dna.length);
+        this.data.orfs.forEach((orf, i) => orf.id = `Gene_${i+1}`);
+    },
+
+    mapCpGIslands: function() {
+        const seq = this.data.sequence;
+        this.data.cpgIslands = [];
+        for(let i=0; i < seq.length - 200; i += 100) {
+            let chunk = seq.substr(i, 200);
+            let c=0, g=0, cg=0;
+            for(let j=0; j<chunk.length; j++) {
+                if(chunk[j] === 'C') c++;
+                if(chunk[j] === 'G') g++;
+                if(chunk[j] === 'C' && chunk[j+1] === 'G') cg++;
+            }
+            let obsExp = (c > 0 && g > 0) ? (cg * 200) / (c * g) : 0;
+            if(((c+g)/200)*100 > 50 && obsExp > 0.6) {
+                this.data.cpgIslands.push({ start: i, end: i+200, density: obsExp.toFixed(2) });
+                i += 200; 
+            }
+        }
+    },
+
+    detectPathogens: function() {
+        const seq = this.data.sequence;
+        this.data.pathology = { crownGall: false, hairyRoot: false };
+        const org = (this.data.metadata.organism || "").toLowerCase();
+        const title = (this.data.metadata.title || "").toLowerCase();
+        
+        if(org.includes("tumefaciens") || title.includes("pti") || title.includes("crown gall")) this.data.pathology.crownGall = true;
+        if(org.includes("rhizogenes") || title.includes("pri") || title.includes("hairy root")) this.data.pathology.hairyRoot = true;
+
+        const scan = (markers) => {
+            let hits = 0; markers.forEach(m => { if(seq.indexOf(m) !== -1) hits++; }); return hits >= 2;
+        };
+
+        if(scan(this.pathologyMarkers.crownGall.markers)) this.data.pathology.crownGall = true;
+        if(scan(this.pathologyMarkers.hairyRoot.markers)) this.data.pathology.hairyRoot = true;
+    },
+
+    fetchLiterature: async function(queryTerm) {
+        const container = document.getElementById('papersContainer');
+        if(!queryTerm) return container.innerHTML = '<div style="color:var(--text-muted)">Insufficient data to find literature.</div>';
+        
+        container.innerHTML = '<div style="text-align:center; color:var(--warning);">Querying PubMed Database...</div>';
+        
+        try {
+            let res = await fetch(`https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${queryTerm}&retmax=5&retmode=json&api_key=${API_KEY}`);
+            let data = await res.json();
+            
+            if(!data.esearchresult || data.esearchresult.idlist.length === 0) {
+                return container.innerHTML = '<div style="color:var(--text-muted)">No recent publications found for this specific organism.</div>';
+            }
+
+            let uids = data.esearchresult.idlist.join(',');
+            let sumRes = await fetch(`https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&id=${uids}&retmode=json&api_key=${API_KEY}`);
+            let sumData = await sumRes.json();
+            
+            container.innerHTML = '';
+            data.esearchresult.idlist.forEach(id => {
+                let paper = sumData.result[id];
+                let div = document.createElement('div');
+                div.className = 'paper-item';
+                div.innerHTML = `
+                    <div class="paper-title"><a href="https://pubmed.ncbi.nlm.nih.gov/${id}/" target="_blank" style="color:var(--primary); text-decoration:none;">${paper.title}</a></div>
+                    <div class="paper-meta">
+                        ${paper.authors ? paper.authors.map(a => a.name).join(', ') : 'Unknown Authors'} <br>
+                        <strong>${paper.source}</strong> | Published: ${paper.pubdate}
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        } catch (e) {
+            container.innerHTML = '<div style="color:var(--danger)">Failed to load literature from PubMed.</div>';
+        }
+    },
+
+    calculatePrimers: function() {
+        const idx = document.getElementById('primerSelect').value;
+        if(idx === "") return;
+        const gene = this.data.orfs[idx];
+        const fwd = gene.dna.substring(0, 20);
+        const map = {'A':'T', 'T':'A', 'C':'G', 'G':'C'};
+        const rev = gene.dna.substring(gene.dna.length - 20).split('').reverse().map(c => map[c]||c).join('');
+        
+        const getThermo = (s) => {
+            let gc = 0; for(let c of s) if(c==='G'||c==='C') gc++;
+            return { gc: ((gc/s.length)*100).toFixed(0), tm: (64.9 + 41 * (gc - 16.4) / s.length).toFixed(1) };
+        };
+
+        let fs = getThermo(fwd), rs = getThermo(rev);
+        document.getElementById('fwdSeq').textContent = fwd;
+        document.getElementById('fwdGc').textContent = `GC: ${fs.gc}%`; document.getElementById('fwdTm').textContent = `Tm: ${fs.tm}°C`;
+        document.getElementById('revSeq').textContent = rev;
+        document.getElementById('revGc').textContent = `GC: ${rs.gc}%`; document.getElementById('revTm').textContent = `Tm: ${rs.tm}°C`;
+        document.getElementById('primerResults').style.display = 'flex';
+    },
+
+    drawPlasmidMap: function() {
+        const group = document.getElementById('svgGenesGroup');
+        group.innerHTML = ''; 
+        const tt = document.getElementById('mapTooltip');
+        const totalLen = this.data.sequence.length;
+        if(totalLen === 0) return;
+
+        const colors = ['#38bdf8', '#818cf8', '#34d399', '#f43f5e', '#fbbf24', '#a78bfa', '#f472b6'];
+
+        this.data.orfs.slice(0, 25).forEach((orf, index) => {
+            let startAngle = (orf.start / totalLen) * 360;
+            let endAngle = (orf.stop / totalLen) * 360;
+            if(endAngle < startAngle) endAngle += 360;
+            if(endAngle - startAngle < 2) endAngle = startAngle + 2;
+
+            let pathData = this.describeArc(250, 250, 200, startAngle, endAngle);
+            let path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            path.setAttribute("d", pathData);
+            path.setAttribute("fill", "none");
+            path.setAttribute("stroke", colors[index % colors.length]);
+            path.setAttribute("stroke-width", "12");
+            path.setAttribute("stroke-linecap", "round");
+            path.setAttribute("class", "arc-gene");
+
+            path.onmouseenter = (e) => {
+                document.getElementById('tt-id').textContent = orf.id;
+                document.getElementById('tt-pos').textContent = `${orf.start} - ${orf.stop} bp`;
+                document.getElementById('tt-len').textContent = `${orf.length} Nucleotides`;
+                tt.style.opacity = '1';
+                tt.style.left = "50%"; tt.style.top = "50%"; tt.style.transform = "translate(-50%, -50%)";
+            };
+            path.onmouseleave = () => { tt.style.opacity = '0'; };
+
+            group.appendChild(path);
+        });
+    },
+
+    updateDOM: function() {
+        document.getElementById('stat-len').textContent = (this.data.sequence.length / 1000).toFixed(1) + ' kb';
+        document.getElementById('stat-gc').textContent = this.data.gcPercent + '%';
+        document.getElementById('stat-orfs').textContent = this.data.orfs.length;
+        document.getElementById('stat-cpg').textContent = this.data.cpgIslands.length;
+        
+        let m = this.data.metadata;
+        document.getElementById('meta-acc').textContent = this.data.accession;
+        document.getElementById('meta-def').textContent = m.title || "Unknown";
+        document.getElementById('meta-org').textContent = m.organism || "Unknown";
+
+        const pathRes = document.getElementById('pathologyResults');
+        pathRes.innerHTML = '';
+        const renderAlert = (title, desc, isPos) => `
+            <div class="pathology-alert ${isPos ? 'positive' : 'negative'}">
+                <div class="path-title">${title}<span class="badge ${isPos ? 'pos' : 'neg'}">${isPos ? 'DETECTED' : 'CLEAR'}</span></div>
+                <div style="font-size:0.85rem; color:var(--text-muted);">${desc}</div>
+            </div>`;
+        pathRes.innerHTML += renderAlert("Crown Gall Disease", "Scanned for Ti Plasmid markers (ipt, virD2).", this.data.pathology.crownGall);
+        pathRes.innerHTML += renderAlert("Hairy Root Disease", "Scanned for Ri Plasmid markers (rolB, rolC).", this.data.pathology.hairyRoot);
+
+        const orfTbody = document.getElementById('orfTable');
+        const primerSel = document.getElementById('primerSelect');
+        orfTbody.innerHTML = ''; primerSel.innerHTML = '<option value="">-- Select Gene Target --</option>';
+
+        this.data.orfs.slice(0, 15).forEach((orf, i) => {
+            let tr = document.createElement('tr');
+            tr.innerHTML = `<td class="mono" style="color:var(--primary);">${orf.id}</td><td class="mono">${orf.start} - ${orf.stop}</td><td>${orf.protein.length} aa</td><td>~${orf.mw} kDa</td>`;
+            orfTbody.appendChild(tr);
+            
+            let opt = document.createElement('option');
+            opt.value = i; opt.textContent = `${orf.id} (${orf.dna.length} bp)`;
+            primerSel.appendChild(opt);
+        });
+
+        const cpgTbody = document.getElementById('cpgTable');
+        cpgTbody.innerHTML = '';
+        if(this.data.cpgIslands.length === 0) cpgTbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No CpG islands detected.</td></tr>';
+        
+        this.data.cpgIslands.slice(0, 15).forEach((isl, i) => {
+            let tr = document.createElement('tr');
+            tr.innerHTML = `<td>Isl_${i+1}</td><td class="mono">${isl.start}</td><td class="mono">${isl.end}</td><td style="color:var(--success);">${isl.density}</td>`;
+            cpgTbody.appendChild(tr);
+        });
+
+        this.drawPlasmidMap();
+    }
+};
+
+document.addEventListener('click', (e) => {
+    if(!document.querySelector('.search-wrapper').contains(e.target)) {
+        document.getElementById('autocompleteBox').style.display = 'none';
+    }
+});
+
+window.addEventListener('resize', () => {
+    if(document.getElementById('view-dna').classList.contains('active')) {
+        const canvas = document.getElementById('dnaCanvas');
+        canvas.width = canvas.parentElement.clientWidth;
+    }
+});
+</script>
+</body>
+</html>
+<script async data-explicit-opt-in="true" data-cookie-opt-in="true" data-deployment-id="dpl_BFJ2tGKXaszBAH1GYCw7VUetQCxq" src="https://vercel.live/_next-live/feedback/feedback.js"></script>
